@@ -39,7 +39,7 @@ int buttonStateNearDisplay = 0; // state for button near display
 
 bool alarmMode = false;
 bool alarmOn = false;
-bool alarmOff = false;
+int alarmState = 0;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 RTC_DS1307 rtc;
@@ -93,30 +93,24 @@ void loop()
   buttonStateMid = digitalRead(buttonMid);
   buttonStateNearDisplay = digitalRead(buttonNearDisplay);
 
-  if (buttonStateNearRTC == HIGH) {
-    Serial.println(buttonStateNearRTC);
-  }
-  if (buttonStateNearDisplay == HIGH) {
-    Serial.println(buttonStateNearDisplay);
-
-  }
-  if (buttonStateMid == HIGH) {
-    Serial.println(buttonStateMid);
-  }
-
 
 }
 
 void setAlarm() {
-  if (buttonStateNearRTC == HIGH) {
+
+  
+  
+  
+  if (buttonStateNearRTC == 1) {
+    alarmOn = true;
     alarmMode = true;
   } else {
     draw_text(45, 135, "OFF", 2, ST7735_RED);
   }
 
   int minuteAlarm = 0;
-
-  if(alarmMode == true) {
+  
+  while(alarmMode == true && alarmMode == true) {
     draw_text(45, 135, "   ", 2, ST7735_RED);
     if(buttonStateMid = HIGH) {
         draw_number(55, 135, minuteAlarm , 2, ST7735_CYAN);
