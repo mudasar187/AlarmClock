@@ -20,15 +20,7 @@
 #define TFT_RST 8 // Reset line for TFT (or connect to +5V)
 
 // notes in the melody:
-int melody[] = {
-  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
-};
-
-// note durations: 4 = quarter note, 8 = eighth note, etc.:
-int noteDurations[] = {
-  4, 4, 4, 4, 4, 4, 4, 4
-};
-
+int melody = NOTE_C4;
 
 DateTime now; // Get the actual time/date from TFT
 char* dayName; // Day names
@@ -263,16 +255,16 @@ void setAlarm() {
 void compareAlarmWithActualTime() {
 
   if (hourNumber == alarmHour && minuteNumber == alarmMinute && alarmOn ) {
-    for (int thisNote = 0; thisNote < 7; thisNote++) {
-      
-    int noteDuration = 1000 / noteDurations[thisNote];
-    
-    tone(speaker, melody[thisNote], noteDuration);
+   alarmRing = true;
+  }
 
-    delay(100);
-  }
-    alarmRing = true;
-  }
+  if (alarmRing) {
+    if (millis() % 1000 > 500) {
+        tone(speaker, melody);
+    } else if (millis() % 1000 < 500) {
+        noTone(speaker);
+    }
+}
 
 }
 
