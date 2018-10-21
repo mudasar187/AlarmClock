@@ -218,7 +218,7 @@ void setAlarm() {
     }
     if (buttonStateNearDisplay == HIGH && (millis() - lastButtonNearDisplay) > minimumTimePressed && !buttonNearDisplayBool) {
       buttonNearDisplayBool = true;
-      alarmMinute = (alarmMinute + 2) % 60;
+      alarmMinute = (alarmMinute + 5) % 60;
     }
     if (buttonStateMid == LOW) {
       buttonMidBool = false;
