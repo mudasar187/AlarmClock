@@ -19,6 +19,16 @@
 #define TFT_DC 9  // Data/command line for TFT
 #define TFT_RST 8 // Reset line for TFT (or connect to +5V)
 
+// notes in the melody:
+int melody[] = {
+  NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
+};
+
+// note durations: 4 = quarter note, 8 = eighth note, etc.:
+int noteDurations[] = {
+  4, 4, 4, 4, 4, 4, 4, 4
+};
+
 
 DateTime now; // Get the actual time/date from TFT
 char* dayName; // Day names
@@ -37,9 +47,29 @@ int buttonStateNearRTC = 0; // state for button near rtc
 int buttonStateMid = 0; // state for button in middle
 int buttonStateNearDisplay = 0; // state for button near display
 
+int previousStateButtonNearRTC = 0;
+int previousStateButtonMid = 0;
+int previousStateButtonNearDisplay = 0;
+
+unsigned long lastButtonNearRTC = 0;
+unsigned long lastButtonMid = 0;
+unsigned long lastButtonNearDisplay = 0;
+
 bool alarmMode = false;
 bool alarmOn = false;
-int alarmState = 0;
+
+int alarmHour = 0;
+int alarmMinute = 0;
+
+int minimumTimePressed = 30;
+
+bool buttonMidBool = false;
+bool buttonNearDisplayBool = false;
+bool buttonNearRTCBool = false;
+
+bool alarmRing = false;
+
+const int speaker = 3;
 
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 RTC_DS1307 rtc;
@@ -75,7 +105,7 @@ void loop()
 {
 
   // Get updates from TFT
-  getUpdatesFromTFT();
+  getUpdatesFromRTC();
 
   // Update date
   updateDate();
@@ -86,66 +116,19 @@ void loop()
   // Set alarm
   setAlarm();
 
-  Serial.begin(9600);
+  // Draw alarm
+  drawAlarm();
 
+  // Compare the drawed alarm with actual time, if same turn alarm on
+  compareAlarmWithActualTime();
 
-  buttonStateNearRTC = digitalRead(buttonNearRTC);
-  buttonStateMid = digitalRead(buttonMid);
-  buttonStateNearDisplay = digitalRead(buttonNearDisplay);
-
-
-}
-
-void setAlarm() {
-
-  
-  
-  
-  if (buttonStateNearRTC == 1) {
-    alarmOn = true;
-    alarmMode = true;
-  } else {
-    draw_text(45, 135, "OFF", 2, ST7735_RED);
-  }
-
-  int minuteAlarm = 0;
-  
-  while(alarmMode == true && alarmMode == true) {
-    draw_text(45, 135, "   ", 2, ST7735_RED);
-    if(buttonStateMid = HIGH) {
-        draw_number(55, 135, minuteAlarm , 2, ST7735_CYAN);
-      }
-  }
-
-}
-
-void setAlarmTime() {
-  // Actual time
-  if (hourNumber < 10) {
-    updateToDecimal(15, 135, hourNumber , 2, ST7735_CYAN);
-  } else {
-    draw_number(15, 135, hourNumber , 2, ST7735_CYAN);
-  }
-
-  // Actual minute
-  if (minuteNumber < 10) {
-    updateToDecimal(55, 135, minuteNumber , 2, ST7735_CYAN);
-  } else {
-    draw_number(55, 135, minuteNumber , 2, ST7735_CYAN);
-  }
-
-  // Actual second
-  if (secondNumber < 10) {
-    updateToDecimal(90, 135, secondNumber , 2, ST7735_CYAN);
-  } else {
-    draw_number(90, 135, secondNumber , 2, ST7735_CYAN);
-  }
 }
 
 void initPinModes() {
   pinMode(buttonNearRTC, INPUT);
   pinMode(buttonMid, INPUT);
   pinMode(buttonNearDisplay, INPUT);
+  pinMode(speaker, OUTPUT);
 }
 
 void initTFT() {
@@ -168,7 +151,7 @@ void initFixedText() {
   draw_text(45, 117, "ALARM", 1, ST7735_MAGENTA);
 }
 
-void getUpdatesFromTFT() {
+void getUpdatesFromRTC() {
   now = rtc.now(); // Get updates from TFT
 
   // Get each update like day name, day number, monthnumber, hour, minute, second
@@ -212,6 +195,106 @@ void updateTime() {
     updateToDecimal(90, 80, secondNumber , 2, ST7735_CYAN);
   } else {
     draw_number(90, 80, secondNumber , 2, ST7735_CYAN);
+  }
+}
+
+void setAlarm() {
+
+  buttonStateNearRTC = digitalRead(buttonNearRTC);
+  buttonStateMid = digitalRead(buttonMid);
+  buttonStateNearDisplay = digitalRead(buttonNearDisplay);
+
+  if (alarmMode && !alarmRing) {
+
+    if (buttonStateNearRTC == HIGH && previousStateButtonNearRTC == LOW) {
+      lastButtonNearRTC = millis();
+    }
+    if (buttonStateNearRTC == HIGH && (millis() - lastButtonNearRTC) > minimumTimePressed && !buttonNearRTCBool) {
+      buttonNearRTCBool = true;
+      alarmMode = false;
+      alarmOn = true;
+    }
+    if (buttonStateMid == HIGH && previousStateButtonMid == LOW) {
+      lastButtonMid = millis();
+    }
+    if (buttonStateNearDisplay == HIGH && previousStateButtonNearDisplay == LOW) {
+      lastButtonNearDisplay = millis();
+    }
+    if (buttonStateMid == HIGH && (millis() - lastButtonMid) > minimumTimePressed && !buttonMidBool) {
+      buttonMidBool = true;
+      alarmHour = (alarmHour + 1) % 24;
+    }
+    if (buttonStateNearDisplay == HIGH && (millis() - lastButtonNearDisplay) > minimumTimePressed && !buttonNearDisplayBool) {
+      buttonNearDisplayBool = true;
+      alarmMinute = (alarmMinute + 2) % 60;
+    }
+    if (buttonStateMid == LOW) {
+      buttonMidBool = false;
+    }
+    if (buttonStateNearDisplay == LOW) {
+      buttonNearDisplayBool = false;
+    }
+    if (buttonStateNearRTC == LOW) {
+      buttonNearRTCBool = false;
+    }
+  } else if (!alarmMode && !alarmRing) {
+    if (buttonStateNearRTC == HIGH && previousStateButtonNearRTC == LOW) {
+      lastButtonNearRTC = millis();
+    }
+    if (buttonStateNearRTC == HIGH && (millis() - lastButtonNearRTC) > minimumTimePressed && !buttonNearRTCBool) {
+      buttonNearRTCBool = true;
+      alarmMode = true;
+    }
+    if (buttonStateNearRTC == LOW) {
+      buttonNearRTCBool = false;
+    }
+  } else if ( buttonStateNearRTC == HIGH || buttonStateMid == HIGH || buttonStateNearDisplay == HIGH ) {
+    alarmRing = false;
+    alarmOn = false;
+    noTone(speaker);
+  }
+
+  previousStateButtonNearRTC = buttonStateNearRTC;
+  previousStateButtonMid = buttonStateMid;
+  previousStateButtonNearDisplay = buttonStateNearDisplay;
+
+}
+
+void compareAlarmWithActualTime() {
+
+  if (hourNumber == alarmHour && minuteNumber == alarmMinute && alarmOn ) {
+    for (int thisNote = 0; thisNote < 7; thisNote++) {
+      
+    int noteDuration = 1000 / noteDurations[thisNote];
+    
+    tone(speaker, melody[thisNote], noteDuration);
+
+    delay(100);
+  }
+    alarmRing = true;
+  }
+
+}
+
+void drawAlarm() {
+  if (!alarmOn && !alarmMode) {
+    draw_text(10, 135, "   OFF   ", 2, ST7735_RED);
+  } else {
+    // Actual time
+    if (alarmHour < 10) {
+      updateToDecimal(33, 135, alarmHour , 2, ST7735_CYAN);
+    } else {
+      draw_number(33, 135, alarmHour , 2, ST7735_CYAN);
+    }
+
+    // Actual minute
+    if (alarmMinute < 10) {
+      updateToDecimal(67, 135, alarmMinute , 2, ST7735_CYAN);
+    } else {
+      draw_number(67, 135, alarmMinute , 2, ST7735_CYAN);
+    }
+
+    draw_text(55, 135, ":", 2, ST7735_CYAN);
   }
 }
 
